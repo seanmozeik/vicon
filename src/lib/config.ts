@@ -7,22 +7,22 @@ export interface CloudflareCredentials {
 	apiToken: string;
 }
 
-export interface ViconConfig {
+export interface AviconConfig {
 	defaultProvider: Provider;
 	cloudflare?: CloudflareCredentials;
 }
 
 // Three-state cache: undefined = not yet loaded, null = nothing found, object = valid config
-let _cache: ViconConfig | null | undefined;
+let _cache: AviconConfig | null | undefined;
 
-export async function getConfig(): Promise<ViconConfig | null> {
+export async function getConfig(): Promise<AviconConfig | null> {
 	if (_cache !== undefined) return _cache;
 
 	// Check env var first
 	const envVal = process.env[CONFIG_KEY];
 	if (envVal) {
 		try {
-			_cache = JSON.parse(envVal) as ViconConfig;
+			_cache = JSON.parse(envVal) as AviconConfig;
 			return _cache;
 		} catch {
 			// Invalid JSON in env var — fall through
@@ -36,7 +36,7 @@ export async function getConfig(): Promise<ViconConfig | null> {
 			name: CONFIG_KEY,
 		});
 		if (val) {
-			_cache = JSON.parse(val) as ViconConfig;
+			_cache = JSON.parse(val) as AviconConfig;
 			return _cache;
 		}
 	} catch {
@@ -47,7 +47,7 @@ export async function getConfig(): Promise<ViconConfig | null> {
 	return null;
 }
 
-export async function setConfig(config: ViconConfig): Promise<void> {
+export async function setConfig(config: AviconConfig): Promise<void> {
 	try {
 		await Bun.secrets.set({
 			service: SECRETS_SERVICE,

@@ -1,5 +1,5 @@
 import type { GenerateResult } from "../types.js";
-import type { CloudflareCredentials, ViconConfig } from "./config.js";
+import type { CloudflareCredentials, AviconConfig } from "./config.js";
 
 export const CF_MODEL = "@cf/openai/gpt-oss-120b";
 export const CLAUDE_MODEL = "sonnet";
@@ -98,12 +98,12 @@ export async function generateWithClaude(
 export async function generate(
 	systemPrompt: string,
 	userPrompt: string,
-	config: ViconConfig,
+	config: AviconConfig,
 ): Promise<GenerateResult> {
 	if (config.defaultProvider === "cloudflare") {
 		if (!config.cloudflare) {
 			throw new Error(
-				"Cloudflare credentials not configured. Run: vicon setup",
+				"Cloudflare credentials not configured. Run: avicon setup",
 			);
 		}
 		return generateWithCloudflare(systemPrompt, userPrompt, config.cloudflare);

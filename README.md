@@ -1,11 +1,11 @@
-# vicon
+# avicon
 
-Describe what you want. Get the shell commands.
+**A**udio **V**ideo **I**mage **Con**verter — describe what you want, get the shell commands.
 
-Vicon is a CLI that turns plain-English media requests into executable ffmpeg and ImageMagick commands. It detects your installed tools and their capabilities, sends your request to an AI provider, and presents the generated commands for review before running them.
+Avicon is a CLI that turns plain-English media requests into executable FFmpeg and ImageMagick commands. It detects your installed tools and their capabilities, sends your request to an AI provider, and presents the generated commands for review before running them.
 
 ```bash
-vicon "convert video.mp4 to gif at 15fps"
+avicon "convert video.mp4 to gif at 15fps"
 ```
 
 ```
@@ -38,35 +38,35 @@ Requires [Bun](https://bun.sh).
 **Homebrew:**
 
 ```bash
-brew install seanmozeik/tap/vicon
+brew install seanmozeik/tap/avicon
 ```
 
 **npm:**
 
 ```bash
-bun add -g @seanmozeik/vicon
+bun add -g @seanmozeik/avicon
 ```
 
 **From source:**
 
 ```bash
-git clone https://github.com/seanmozeik/vicon.git
-cd vicon
+git clone https://github.com/seanmozeik/avicon.git
+cd avicon
 bun install
-bun run build          # compiled binary → ./vicon
+bun run build          # compiled binary → ./avicon
 bun run install-local  # moves binary to ~/.local/bin
 ```
 
 ## Setup
 
-Run `vicon setup` to configure your AI provider.
+Run `avicon setup` to configure your AI provider.
 
 **Cloudflare AI** requires an account ID and API token. Credentials are stored in your system keychain (macOS Keychain, Linux libsecret).
 
 **Claude Code CLI** requires the `claude` binary on your PATH. No additional credentials needed.
 
 ```bash
-vicon setup
+avicon setup
 ```
 
 ```
@@ -76,10 +76,10 @@ vicon setup
 └
 ```
 
-For headless or CI environments, set the `VICON_CONFIG` environment variable:
+For headless or CI environments, set the `AVICON_CONFIG` environment variable:
 
 ```bash
-export VICON_CONFIG='{"defaultProvider":"cloudflare","cloudflare":{"accountId":"...","apiToken":"..."}}'
+export AVICON_CONFIG='{"defaultProvider":"cloudflare","cloudflare":{"accountId":"...","apiToken":"..."}}'
 ```
 
 Linux users need libsecret for keychain storage:
@@ -98,27 +98,27 @@ sudo pacman -S libsecret
 ## Usage
 
 ```bash
-vicon "<your request>"
+avicon "<your request>"
 ```
 
-Vicon detects ffmpeg and ImageMagick on startup, inventories their encoders, decoders, and supported formats, and feeds this context to the AI. The generated commands match your actual environment.
+Avicon detects FFmpeg and ImageMagick on startup, inventories their codecs, filters, and supported formats, and feeds this context to the AI. The generated commands match your actual environment.
 
 ### Examples
 
 ```bash
 # Video
-vicon "convert video.mp4 to gif at 15fps"
-vicon "extract audio from interview.mov as flac"
-vicon "compress this 4K video to 1080p h265 with good quality"
+avicon "convert video.mp4 to gif at 15fps"
+avicon "extract audio from interview.mov as flac"
+avicon "compress this 4K video to 1080p h265 with good quality"
 
 # Images
-vicon "resize all jpgs in this folder to 800px wide"
-vicon "convert logo.png to webp and avif"
-vicon "strip EXIF data from every image in ./photos"
+avicon "resize all jpgs in this folder to 800px wide"
+avicon "convert logo.png to webp and avif"
+avicon "strip EXIF data from every image in ./photos"
 
 # Audio
-vicon "split podcast.mp3 into 30-minute chunks"
-vicon "normalize volume across all wav files here"
+avicon "split podcast.mp3 into 30-minute chunks"
+avicon "normalize volume across all wav files here"
 ```
 
 ### Actions
@@ -139,12 +139,12 @@ After generation, you choose what happens next:
 Force a specific provider for one invocation:
 
 ```bash
-vicon "resize photo.jpg to 50%" --provider claude
+avicon "resize photo.jpg to 50%" --provider claude
 ```
 
 ### Post-run cleanup
 
-After commands finish, vicon scans for media files referenced in the commands and offers to delete the originals. The default is No.
+After commands finish, avicon scans for media files referenced in the commands and offers to delete the originals. The default is No.
 
 ```
 ℹ  Input files detected:
@@ -156,7 +156,7 @@ After commands finish, vicon scans for media files referenced in the commands an
 
 ### Error recovery
 
-If the AI returns an unparseable response, vicon shows the raw output and offers three paths: retry with the same prompt, edit your prompt and retry, or cancel. This loop continues until you get a valid result or walk away.
+If the AI returns an unparseable response, avicon shows the raw output and offers three paths: retry with the same prompt, edit your prompt and retry, or cancel. This loop continues until you get a valid result or walk away.
 
 ## Flags
 
@@ -175,12 +175,12 @@ teardown    Remove saved credentials from keychain
 
 ## Tool detection
 
-On each run, vicon probes for:
+On each run, avicon probes for:
 
-- **ffmpeg**: version, full encoder list, full decoder list
+- **FFmpeg**: version, codecs, filters, bitstream filters, formats
 - **ImageMagick**: version, supported format list
 
-This context goes into the system prompt so the AI only generates commands your system can execute. If a tool is missing, vicon warns you and the AI works around it.
+This context goes into the system prompt so the AI only generates commands your system can execute. If a tool is missing, avicon warns you and the AI works around it.
 
 ## How it works
 

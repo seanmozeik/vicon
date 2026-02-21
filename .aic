@@ -1,4 +1,4 @@
-# vicon Release Configuration
+# avicon Release Configuration
 
 [release]
 # Clean and create dist directory
@@ -8,21 +8,21 @@ rm -rf dist && mkdir -p dist
 bun build ./src/index.ts --outdir dist --target=bun --minify
 
 # Build Windows binary (compiled, since no Homebrew)
-bun build ./src/index.ts --compile --format esm --target=bun-windows-x64 --bytecode --outfile dist/vicon-windows-x64.exe --minify
+bun build ./src/index.ts --compile --format esm --target=bun-windows-x64 --bytecode --outfile dist/avicon-windows-x64.exe --minify
 
 # Clean up bun build artifacts
 rm -f ./.*bun-build
 
 # Create source tarball with bundled files (exclude binaries and archives)
 VERSION=$(bun -p "require('./package.json').version") && \
-tar -czvf "dist/vicon-${VERSION}.tar.gz" -C dist --exclude='*.tar.gz' --exclude='*.exe' --exclude='*.zip' .
+tar -czvf "dist/avicon-${VERSION}.tar.gz" -C dist --exclude='*.tar.gz' --exclude='*.exe' --exclude='*.zip' .
 
 # Create Windows zip
-cd dist && zip vicon-windows-x64.zip vicon-windows-x64.exe && rm vicon-windows-x64.exe
+cd dist && zip avicon-windows-x64.zip avicon-windows-x64.exe && rm avicon-windows-x64.exe
 
 # Generate checksums
 VERSION=$(bun -p "require('./package.json').version") && \
-bun -e 'for(const f of[`vicon-${process.argv[1]}.tar.gz`,"vicon-windows-x64.zip"]){console.log(new Bun.CryptoHasher("sha256").update(await Bun.file("dist/"+f).arrayBuffer()).digest("hex")+"  "+f)}' "$VERSION" > dist/checksums.txt && cat dist/checksums.txt
+bun -e 'for(const f of[`avicon-${process.argv[1]}.tar.gz`,"avicon-windows-x64.zip"]){console.log(new Bun.CryptoHasher("sha256").update(await Bun.file("dist/"+f).arrayBuffer()).digest("hex")+"  "+f)}' "$VERSION" > dist/checksums.txt && cat dist/checksums.txt
 
 [publish]
 # Create GitHub release with bundled tarball and Windows binary
@@ -30,15 +30,15 @@ gh release create "v$(bun -p "require('./package.json').version")" dist/*.tar.gz
 
 # Update Homebrew formula with new version and SHA256
 VERSION=$(bun -p "require('./package.json').version") && \
-SHA=$(bun -e 'console.log(new Bun.CryptoHasher("sha256").update(await Bun.file("dist/vicon-"+process.argv[1]+".tar.gz").arrayBuffer()).digest("hex"))' "$VERSION") && \
-sed -i '' "s/version \".*\"/version \"$VERSION\"/" Formula/vicon.rb && \
-sed -i '' "s/sha256 \".*\"/sha256 \"$SHA\"/" Formula/vicon.rb
+SHA=$(bun -e 'console.log(new Bun.CryptoHasher("sha256").update(await Bun.file("dist/avicon-"+process.argv[1]+".tar.gz").arrayBuffer()).digest("hex"))' "$VERSION") && \
+sed -i '' "s/version \".*\"/version \"$VERSION\"/" Formula/avicon.rb && \
+sed -i '' "s/sha256 \".*\"/sha256 \"$SHA\"/" Formula/avicon.rb
 
 # Copy formula to tap and commit
-cp Formula/vicon.rb ~/workspace/tap/Formula/vicon.rb && \
+cp Formula/avicon.rb ~/workspace/tap/Formula/avicon.rb && \
 cd ~/workspace/tap && \
-git add Formula/vicon.rb && \
-git commit -m "vicon $(bun -p "require('$OLDPWD/package.json').version")" && \
+git add Formula/avicon.rb && \
+git commit -m "avicon $(bun -p "require('$OLDPWD/package.json').version")" && \
 git push
 
 # Publish to npm

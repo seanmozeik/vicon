@@ -16,35 +16,69 @@ async function probeFfmpeg(): Promise<ToolContext["ffmpeg"]> {
 	if (!versionOut)
 		return {
 			installed: false,
-			videoEncoders: [],
-			audioEncoders: [],
-			decoders: [],
+			codecs: [],
+			filters: [],
+			bitstreamFilters: [],
+			formats: [],
 		};
 
 	const versionMatch = versionOut.split("\n")[0]?.match(/ffmpeg version (\S+)/);
 	const version = versionMatch?.[1];
 
-	const encodersOut = await run(["ffmpeg", "-encoders"]);
-	const decodersOut = await run(["ffmpeg", "-decoders"]);
+	const [codecsOut, filtersOut, bsfsOut, formatsOut] = await Promise.all([
+		run(["ffmpeg", "-codecs"]),
+		run(["ffmpeg", "-filters"]),
+		run(["ffmpeg", "-bsfs"]),
+		run(["ffmpeg", "-formats"]),
+	]);
 
-	const parseEncoderLines = (out: string) =>
-		out
-			.split("\n")
-			.filter((l) => /^ [VAS][A-Z.]{5} \S/.test(l))
-			.map((l) => ({ type: l[1], name: l.trim().split(/\s+/)[1] ?? "" }))
-			.filter((e) => e.name);
+	// Codecs: " DEV.LS h264  H.264 ... (encoders: libx264 h264_videotoolbox)"
+	const codecs = codecsOut
+		.split("\n")
+		.filter((l) => /^ [D.][E.][VASDT][I.][L.][S.] \S/.test(l))
+		.map((l) => {
+			const rest = l.slice(8);
+			const name = rest.trim().split(/\s+/)[0] ?? "";
+			const encoderMatch = rest.match(/\(encoders: ([^)]+)\)/);
+			return encoderMatch ? `${name} (encoders: ${encoderMatch[1]})` : name;
+		})
+		.filter(Boolean);
 
-	const encoderEntries = parseEncoderLines(encodersOut);
-	const videoEncoders = encoderEntries
-		.filter((e) => e.type === "V")
-		.map((e) => e.name);
-	const audioEncoders = encoderEntries
-		.filter((e) => e.type === "A")
-		.map((e) => e.name);
+	// Filters: " TS scale  V->V  description"
+	const filters = filtersOut
+		.split("\n")
+		.filter((l) => /^ [T.][S.] \w/.test(l))
+		.map((l) => l.slice(4).trim().split(/\s+/)[0] ?? "")
+		.filter(Boolean);
 
-	const decoders = parseEncoderLines(decodersOut).map((e) => e.name);
+	// Bitstream filters: simple list after header
+	const bsfLines = bsfsOut.split("\n");
+	const bsfStart = bsfLines.findIndex((l) =>
+		l.includes("Bitstream filters:"),
+	);
+	const bitstreamFilters =
+		bsfStart >= 0
+			? bsfLines
+					.slice(bsfStart + 1)
+					.map((l) => l.trim())
+					.filter(Boolean)
+			: [];
 
-	return { installed: true, version, videoEncoders, audioEncoders, decoders };
+	// Formats: " DE  avi  AVI (Audio Video Interleaved)"
+	const formats = formatsOut
+		.split("\n")
+		.filter((l) => /^ [D ][E ][d ] \S/.test(l))
+		.map((l) => l.slice(5).trim().split(/\s+/)[0] ?? "")
+		.filter(Boolean);
+
+	return {
+		installed: true,
+		version,
+		codecs,
+		filters,
+		bitstreamFilters,
+		formats,
+	};
 }
 
 async function probeMagick(): Promise<ToolContext["magick"]> {

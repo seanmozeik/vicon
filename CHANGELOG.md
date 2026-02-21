@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2026-02-21
 
 ### Added
-- Add separate video and audio encoders in ffmpeg to give users more precise control over media conversion.
+- Add separate video and audio encoders in FFmpeg to give users more precise control over media conversion.
 - Add an expanded system prompt to provide clearer guidance and enhance the overall user experience.
 
 ## [0.1.0] - 2026-02-21

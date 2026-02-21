@@ -4,7 +4,7 @@ import * as p from "@clack/prompts";
 import boxen from "boxen";
 import { generate, ValidationError } from "./lib/ai.js";
 import { copyToClipboard } from "./lib/clipboard.js";
-import type { Provider, ViconConfig } from "./lib/config.js";
+import type { Provider, AviconConfig } from "./lib/config.js";
 import { deleteConfig, getConfig, setConfig } from "./lib/config.js";
 import { buildSystemPrompt, buildUserPrompt } from "./lib/prompt.js";
 import { runCommands } from "./lib/run.js";
@@ -46,7 +46,7 @@ const providerOverride = popFlagValue("--provider") as Provider | undefined;
 
 if (versionFlag) {
 	const pkg = (await import("../package.json")) as { version: string };
-	console.log(`vicon v${pkg.version}`);
+	console.log(`avicon v${pkg.version}`);
 	process.exit(0);
 }
 
@@ -55,7 +55,7 @@ if (helpFlag) {
 	console.log(
 		[
 			"",
-			`  ${theme.heading("Usage:")} vicon <request> [--provider cloudflare|claude]`,
+			`  ${theme.heading("Usage:")} avicon <request> [--provider cloudflare|claude]`,
 			"",
 			`  ${theme.heading("Subcommands:")}`,
 			`    ${frappe.sky("setup")}      Configure AI provider credentials`,
@@ -67,9 +67,9 @@ if (helpFlag) {
 			`    ${frappe.sky("--version")}   Print version`,
 			"",
 			`  ${theme.heading("Examples:")}`,
-			`    vicon "convert video.mp4 to gif at 15fps"`,
-			`    vicon "resize all jpgs in this folder to 800px wide"`,
-			`    vicon "extract audio from interview.mov as flac" --provider claude`,
+			`    avicon "convert video.mp4 to gif at 15fps"`,
+			`    avicon "resize all jpgs in this folder to 800px wide"`,
+			`    avicon "extract audio from interview.mov as flac" --provider claude`,
 			"",
 		].join("\n"),
 	);
@@ -97,7 +97,7 @@ async function setupCloudflare(): Promise<void> {
 		process.exit(0);
 	}
 
-	const config: ViconConfig = {
+	const config: AviconConfig = {
 		defaultProvider: "cloudflare",
 		cloudflare: {
 			accountId: (accountId as string).trim(),
@@ -115,7 +115,7 @@ async function setupCloudflare(): Promise<void> {
 
 async function runSetup(): Promise<void> {
 	showBanner();
-	p.intro("Configure vicon AI provider");
+	p.intro("Configure avicon AI provider");
 
 	const provider = await p.select<Provider>({
 		message: "Which AI provider?",
@@ -156,7 +156,7 @@ async function runSetup(): Promise<void> {
 		process.exit(1);
 	}
 
-	const config: ViconConfig = { defaultProvider: "claude" };
+	const config: AviconConfig = { defaultProvider: "claude" };
 	try {
 		await setConfig(config);
 	} catch (err) {
@@ -170,7 +170,7 @@ async function runTeardown(): Promise<void> {
 	showBanner();
 
 	const confirm = await p.confirm({
-		message: "Delete vicon config from keychain?",
+		message: "Delete avicon config from keychain?",
 		initialValue: false,
 	});
 
@@ -192,14 +192,14 @@ function renderToolSummary(ctx: ToolCtx): string {
 
 	if (ctx.ffmpeg.installed) {
 		const ver = ctx.ffmpeg.version ?? "?";
-		const enc =
-			ctx.ffmpeg.videoEncoders.length + ctx.ffmpeg.audioEncoders.length;
-		const dec = ctx.ffmpeg.decoders.length;
+		const cod = ctx.ffmpeg.codecs.length;
+		const fil = ctx.ffmpeg.filters.length;
+		const fmt = ctx.ffmpeg.formats.length;
 		parts.push(
-			theme.muted(`ffmpeg ${ver} (${enc} encoders · ${dec} decoders)`),
+			theme.muted(`FFmpeg ${ver} (${cod} codecs · ${fil} filters · ${fmt} formats)`),
 		);
 	} else {
-		parts.push(frappe.yellow("ffmpeg not found"));
+		parts.push(frappe.yellow("FFmpeg not found"));
 	}
 
 	if (ctx.magick.installed) {
@@ -225,19 +225,21 @@ function renderPanels(result: GenerateResult): void {
 	});
 	console.log(`\n${explanationBox}`);
 
-	const numberedCmds = result.commands
-		.map((cmd, i) => `${frappe.sky(`[${i + 1}]`)} ${cmd}`)
-		.join("\n");
+	if (result.commands.length > 0) {
+		const numberedCmds = result.commands
+			.map((cmd, i) => `${frappe.sky(`[${i + 1}]`)} ${cmd}`)
+			.join("\n");
 
-	const commandsBox = boxen(numberedCmds, {
-		borderColor: boxColors.default,
-		dimBorder: true,
-		borderStyle: "round",
-		padding: { top: 0, bottom: 0, left: 1, right: 1 },
-		title: "Commands",
-		titleAlignment: "left",
-	});
-	console.log(`\n${commandsBox}\n`);
+		const commandsBox = boxen(numberedCmds, {
+			borderColor: boxColors.default,
+			dimBorder: true,
+			borderStyle: "round",
+			padding: { top: 0, bottom: 0, left: 1, right: 1 },
+			title: "Commands",
+			titleAlignment: "left",
+		});
+		console.log(`\n${commandsBox}\n`);
+	}
 }
 
 // ── Post-run cleanup ──────────────────────────────────────────────────────────
@@ -283,10 +285,10 @@ async function runCleanup(files: string[]): Promise<void> {
 async function tryGenerate(
 	userRequest: string,
 	ctx: ToolCtx,
-	config: ViconConfig,
+	config: AviconConfig,
 ): Promise<GenerateResult | null> {
 	const s = p.spinner();
-	s.start("Generating command…");
+	s.start("Generating command");
 	try {
 		const result = await generate(
 			buildSystemPrompt(ctx),
@@ -338,7 +340,7 @@ async function promptErrorRecovery(
 async function generateUntilSuccess(
 	initialRequest: string,
 	ctx: ToolCtx,
-	config: ViconConfig,
+	config: AviconConfig,
 ): Promise<{ result: GenerateResult; userRequest: string }> {
 	let userRequest = initialRequest;
 	for (;;) {
@@ -356,7 +358,7 @@ async function generateUntilSuccess(
 async function handleEditPromptAction(
 	userRequest: string,
 	ctx: ToolCtx,
-	config: ViconConfig,
+	config: AviconConfig,
 ): Promise<{ result: GenerateResult; userRequest: string }> {
 	const edited = await p.text({
 		message: "Edit your request:",
@@ -424,17 +426,17 @@ async function handleRunAction(commands: string[]): Promise<void> {
 
 async function runConversion(
 	initialRequest: string,
-	config: ViconConfig,
+	config: AviconConfig,
 ): Promise<void> {
 	const toolSpinner = p.spinner();
-	toolSpinner.start("Detecting tools…");
+	toolSpinner.start("Detecting tools");
 	const ctx = await detectContext();
 	toolSpinner.stop("Tools detected.");
 	p.log.info(renderToolSummary(ctx));
 
 	if (!ctx.ffmpeg.installed && !ctx.magick.installed) {
 		p.log.error(
-			"No media tools found. Install ffmpeg or ImageMagick and try again.",
+			"No media tools found. Install FFmpeg or ImageMagick and try again.",
 		);
 		process.exit(1);
 	}
@@ -447,24 +449,30 @@ async function runConversion(
 	renderPanels(currentResult);
 
 	while (true) {
+		const hasCommands = currentResult.commands.length > 0;
+		const options = [
+			...(hasCommands
+				? [
+						{ value: "run", label: "Run all" },
+						{
+							value: "edit",
+							label: "Edit commands",
+							hint: "tweak the generated commands",
+						},
+					]
+				: []),
+			{ value: "retry", label: "Retry", hint: "regenerate with same prompt" },
+			{
+				value: "edit-prompt",
+				label: "Edit prompt",
+				hint: "modify request and retry",
+			},
+			...(hasCommands ? [{ value: "copy", label: "Copy" }] : []),
+			{ value: "cancel", label: "Cancel" },
+		];
 		const action = await p.select({
 			message: "What would you like to do?",
-			options: [
-				{ value: "run", label: "Run all" },
-				{
-					value: "edit",
-					label: "Edit commands",
-					hint: "tweak the generated commands",
-				},
-				{ value: "retry", label: "Retry", hint: "regenerate with same prompt" },
-				{
-					value: "edit-prompt",
-					label: "Edit prompt",
-					hint: "modify request and retry",
-				},
-				{ value: "copy", label: "Copy" },
-				{ value: "cancel", label: "Cancel" },
-			],
+			options,
 		});
 
 		if (p.isCancel(action) || action === "cancel") {
@@ -524,20 +532,20 @@ if (subcommand === "setup") {
 
 	if (!config) {
 		showBanner();
-		p.log.error("No provider configured. Run: vicon setup");
+		p.log.error("No provider configured. Run: avicon setup");
 		process.exit(1);
 	}
 
 	if (config.defaultProvider === "cloudflare" && !config.cloudflare) {
 		showBanner();
-		p.log.error("Cloudflare credentials missing. Run: vicon setup");
+		p.log.error("Cloudflare credentials missing. Run: avicon setup");
 		process.exit(1);
 	}
 
 	showBanner();
 
 	if (!request) {
-		p.log.info("Usage: vicon <request>  |  vicon --help for more");
+		p.log.info("Usage: avicon <request>  |  avicon --help for more");
 		process.exit(0);
 	}
 

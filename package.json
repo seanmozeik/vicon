@@ -1,10 +1,10 @@
 {
-  "name": "@seanmozeik/vicon",
+  "name": "@seanmozeik/avicon",
   "version": "0.1.2",
-  "description": "AI-powered media conversion CLI — describe what you want, get the commands",
+  "description": "AI-powered audio/video/image conversion CLI — describe what you want, get the commands",
   "type": "module",
   "bin": {
-    "vicon": "src/index.ts"
+    "avicon": "src/index.ts"
   },
   "files": [
     "src",
@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/seanmozeik/vicon.git"
+    "url": "git+https://github.com/seanmozeik/avicon.git"
   },
   "dependencies": {
     "@clack/prompts": "latest",
@@ -40,10 +40,10 @@
     "typescript": "^5"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --compile --outfile vicon --minify",
+    "build": "bun build ./src/index.ts --compile --outfile avicon --minify",
     "bundle": "bun build ./src/index.ts --outdir dist --target=bun --bytecode --minify",
     "dev": "bun --hot src/index.ts",
-    "install-local": "bun run build && mkdir -p ~/.local/bin && mv vicon ~/.local/bin/vicon && chmod +x ~/.local/bin/vicon",
+    "install-local": "bun run build && mkdir -p ~/.local/bin && mv avicon ~/.local/bin/avicon && chmod +x ~/.local/bin/avicon",
     "test": "bun test"
   }
 }
