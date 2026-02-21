@@ -1,25 +1,25 @@
 {
-  "name": "vicon",
-  "module": "src/index.ts",
-  "type": "module",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "bun --hot src/index.ts",
-    "build": "bun build src/index.ts --compile --outfile vicon"
-  },
-  "dependencies": {
-    "@clack/prompts": "latest",
-    "boxen": "latest",
-    "figlet": "latest",
-    "gradient-string": "latest",
-    "picocolors": "latest"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/figlet": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  }
+	"name": "vicon",
+	"module": "src/index.ts",
+	"type": "module",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "bun --hot src/index.ts",
+		"build": "bun build src/index.ts --compile --outfile vicon"
+	},
+	"dependencies": {
+		"@clack/prompts": "latest",
+		"boxen": "latest",
+		"figlet": "latest",
+		"gradient-string": "latest",
+		"picocolors": "latest"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/figlet": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
 }

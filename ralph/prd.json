@@ -1,138 +1,138 @@
 {
-  "project": "vicon",
-  "branchName": "ralph/vicon-cli",
-  "description": "vicon — AI-Powered Media Conversion CLI that translates natural-language requests into ffmpeg/magick commands using Cloudflare AI or Claude Code CLI as the backend",
-  "userStories": [
-    {
-      "id": "US-001",
-      "title": "Project scaffold, dependencies, banner & theme",
-      "description": "As a developer, I need the project wired up with dependencies, strict tsconfig, dev/build scripts, the Catppuccin Frappe theme, and the VICON ASCII banner so the rest of the work has a foundation and consistent UI.",
-      "acceptanceCriteria": [
-        "package.json has @clack/prompts, picocolors, boxen, gradient-string, figlet installed via bun install",
-        "tsconfig.json is strict-mode, targets ESNext, moduleResolution: bundler",
-        "bun run dev runs src/index.ts with --hot",
-        "bun run build produces compiled binary ./vicon via bun build src/index.ts --compile --outfile vicon",
-        "src/ui/theme.ts exports full Catppuccin Frappe palette and semantic aliases (adapted from reference /tmp/imports/src/ui/theme.ts)",
-        "src/ui/banner.ts exports showBanner() displaying 'VICON' in ANSI Shadow font with mauve→pink→flamingo gradient",
-        "Banner renders without errors in terminal",
-        "Typecheck passes"
-      ],
-      "priority": 1,
-      "passes": true,
-      "notes": "Installed @clack/prompts, boxen, figlet, gradient-string, picocolors. Added dev/build scripts to package.json. Created src/ui/theme.ts (full Catppuccin Frappe palette + semantic aliases + gradientColors + boxColors). Created src/ui/banner.ts (showBanner() with ANSI Shadow font, mauve→pink→flamingo gradient). Created src/index.ts entry point. Typecheck passes, banner renders."
-    },
-    {
-      "id": "US-002",
-      "title": "AI client module (Cloudflare + Claude Code CLI)",
-      "description": "As a developer, I need a reusable AI module that supports both Cloudflare AI and the Claude Code CLI as backends, with response validation, so all generation goes through one place.",
-      "acceptanceCriteria": [
-        "src/types.ts exports GenerateResult = { commands: string[], explanation: string }",
-        "src/lib/ai.ts exports CF_MODEL = '@cf/openai/gpt-oss-120b' and CLAUDE_MODEL = 'sonnet' as single swappable constants",
-        "generateWithCloudflare(systemPrompt, userPrompt, credentials): POSTs to https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/v1/chat/completions with messages array and response_format json_object, throws on non-200",
-        "generateWithClaude(systemPrompt, userPrompt): spawns Bun.spawn(['claude', '--model', CLAUDE_MODEL, '-p', combinedPrompt], { stdout: 'pipe' }) and reads stdout via new Response(proc.stdout).text()",
-        "generate(systemPrompt, userPrompt, config): dispatches to the correct function based on config.defaultProvider",
-        "validateResponse(raw): strips markdown code fences defensively, parses JSON, validates commands is string[] and explanation is string, throws typed error with raw text if invalid",
-        "Both paths pipe their response through validateResponse before returning",
-        "Typecheck passes"
-      ],
-      "priority": 2,
-      "passes": true,
-      "notes": "Created src/types.ts exporting GenerateResult { commands: string[], explanation: string }. Created src/lib/ai.ts with CF_MODEL='@cf/openai/gpt-oss-120b', CLAUDE_MODEL='sonnet', generateWithCloudflare (chat completions API with json_object response_format), generateWithClaude (Bun.spawn claude CLI, reads stdout via new Response(proc.stdout).text()), generate dispatcher, validateResponse with defensive code-fence stripping and typed ValidationError. Both paths pipe through validateResponse. Typecheck passes."
-    },
-    {
-      "id": "US-003",
-      "title": "Config, secrets & provider setup/teardown",
-      "description": "As a user, I need to configure vicon once — choosing Cloudflare (credentials required) or Claude Code CLI (no credentials) — and have that choice persisted in the system keychain with env var fallback.",
-      "acceptanceCriteria": [
-        "src/lib/secrets.ts exports SECRETS_SERVICE = 'com.vicon.cli' and CONFIG_KEY = 'VICON_CONFIG'",
-        "src/lib/config.ts exports: type Provider = 'cloudflare' | 'claude', interface CloudflareCredentials { accountId, apiToken }, interface ViconConfig { defaultProvider: Provider, cloudflare?: CloudflareCredentials }",
-        "Module-level three-state cache: undefined = not yet loaded, null = nothing found, object = valid config",
-        "getConfig(): checks cache → process.env['VICON_CONFIG'] JSON parse → Bun.secrets.get; caches result; returns null on miss",
-        "setConfig(config): writes to Bun.secrets, updates cache; on Linux libsecret error, throws with distro install commands",
-        "deleteConfig(): resets cache to undefined, calls Bun.secrets.delete",
-        "vicon setup: p.select provider → if cloudflare collect accountId + apiToken and save; if claude run 'which claude' via Bun.spawn and exit 1 if not found",
-        "vicon teardown: p.confirm (default No) → deleteConfig",
-        "--provider cloudflare|claude flag overrides config.defaultProvider for a single invocation",
-        "At conversion time: missing cloudflare credentials exits 1 with helpful message",
-        "Typecheck passes"
-      ],
-      "priority": 3,
-      "passes": true,
-      "notes": "Created src/lib/secrets.ts (SECRETS_SERVICE='com.vicon.cli', CONFIG_KEY='VICON_CONFIG'). Created src/lib/config.ts (Provider type, CloudflareCredentials/ViconConfig interfaces, three-state cache, getConfig/setConfig/deleteConfig with Bun.secrets + env-var fallback and Linux libsecret install hints). Updated src/lib/ai.ts to import types from config.ts. Updated src/index.ts: setup subcommand (p.select provider, collect CF creds or verify claude CLI), teardown subcommand (p.confirm default No → deleteConfig), --provider flag override, missing-credentials guard at conversion time. Typecheck passes."
-    },
-    {
-      "id": "US-004",
-      "title": "Tool/codec detection and prompt construction",
-      "description": "As a developer, I need a tool detection module that probes ffmpeg and magick in parallel and a prompt builder that injects that context into structured LLM prompts enforcing strict JSON output.",
-      "acceptanceCriteria": [
-        "src/types.ts exports ToolContext: { ffmpeg: { installed: boolean, version?: string, encoders: string[], decoders: string[] }, magick: { installed: boolean, version?: string, formats: string[] } }",
-        "src/lib/tools.ts exports detectContext(): Promise<ToolContext> — runs ffmpeg and magick probes in parallel via Promise.all, caches for process lifetime",
-        "ffmpeg: parses version from 'ffmpeg -version' first line, encoder names from 'ffmpeg -encoders', decoder names from 'ffmpeg -decoders'; installed: false + empty arrays if not found",
-        "magick: parses version from 'magick -version' first line, format names from 'magick -list format'; installed: false + empty arrays if not found",
-        "src/lib/prompt.ts exports buildSystemPrompt(ctx: ToolContext): string and buildUserPrompt(request: string): string",
-        "Prompt composed as ## SectionName\\ncontent blocks joined by \\n\\n; sections: ## Environment then ## Rules",
-        "## Environment: ffmpeg 7.1 | encoders: [...] | decoders: [...] and magick 7.1.1 | formats: [...]",
-        "## Rules: instructs LLM to return only valid JSON { commands: string[], explanation: string }; explanation is plain prose only (no shell syntax); commands are complete copy-pasteable shell strings (no placeholders, no &&, no loops); ends with IMPORTANT: Reply with ONLY the JSON object",
-        "Rules also instruct: only use installed tools; prefer non-destructive output (_converted suffix, -n flag); multiple commands for batch tasks",
-        "Typecheck passes"
-      ],
-      "priority": 4,
-      "passes": true,
-      "notes": "Added ToolContext interface to src/types.ts. Created src/lib/tools.ts: detectContext() runs ffmpeg and magick probes in parallel via Promise.all, parses version/encoders/decoders/formats, caches for process lifetime, gracefully handles not-found. Created src/lib/prompt.ts: buildSystemPrompt(ctx) builds ## Environment and ## Rules sections with full encoder/decoder/format lists and strict JSON-only output rules; buildUserPrompt(request) returns request unchanged. Typecheck passes."
-    },
-    {
-      "id": "US-005",
-      "title": "Main conversion flow — arg routing, tool summary, and display panels",
-      "description": "As a user, I want to run 'vicon my request' and see a spinner while tools are detected and AI generates commands, then a clear explanation panel and commands panel before being asked what to do.",
-      "acceptanceCriteria": [
-        "src/index.ts handles arg routing: 'setup', 'teardown', '--help/-h', '--version/-v' as subcommands; first non-flag positional arg is the conversion request",
-        "Full display flow: showBanner() → spinner 'Detecting tools…' → print tool summary → spinner 'Generating command…' → AI call → render panels → action menu",
-        "Tool summary line (via p.log.info): 'ffmpeg 7.1 (142 encoders · 156 decoders)  ·  magick 7.1.1 (210 formats)' in muted theme color; if not installed show 'ffmpeg not found' in yellow",
-        "Explanation panel: boxen with borderColor mauve (frappe primary), borderStyle round, padding {top:1,bottom:1,left:2,right:2}, title 'What this does' centered",
-        "Commands panel: boxen with borderColor surface2, dimBorder: true, borderStyle round, padding {top:0,bottom:0,left:1,right:1}, title 'Commands' left-aligned; commands numbered [1] cmd [2] cmd in frappe.sky color",
-        "Action menu: p.select with options 'Run all' / 'Edit' / 'Copy' / 'Cancel'",
-        "Single command still goes through the Commands panel unchanged",
-        "If JSON parse fails, show raw LLM output and exit 1",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Updated src/index.ts: added --help/-h (banner + usage with 3 examples) and --version/-v (reads version from package.json import) flags; first non-flag positional arg is conversion request. Implemented runConversion(): spinner 'Detecting tools…' → detectContext() → p.log.info tool summary (muted for installed, yellow for not found) → spinner 'Generating command…' → generate() → renderPanels() (boxen explanation panel: borderColor mauve, round, centered title 'What this does'; boxen commands panel: borderColor surface2, dimBorder, round, left title 'Commands', sky-colored [N] prefix) → p.select action menu (Run all/Edit/Copy/Cancel). Cancel exits 0; run/edit/copy stubs left for US-006. ValidationError shows raw output and exits 1. Typecheck passes."
-    },
-    {
-      "id": "US-006",
-      "title": "Action menu: edit, copy, and serial command execution",
-      "description": "As a user, after seeing the panels I want to edit or copy commands, or run them all in series with live output streamed to my terminal.",
-      "acceptanceCriteria": [
-        "src/lib/clipboard.ts (lifted from /tmp/imports): macOS uses Bun.spawn(['pbcopy'], { stdin: 'pipe' }) writing text directly to stdin; Linux iterates [xclip -selection clipboard, xsel --clipboard --input, wl-copy] probing with Bun.$`which`.quiet(), spawns first found; returns boolean",
-        "'Copy' action: copies all commands joined by \\n to clipboard; prints success or 'No clipboard tool found. Install xclip, xsel, or wl-copy.' then exits",
-        "'Edit' action: p.text pre-filled with commands joined by \\n; on submit re-renders both panels with updated commands and re-shows action menu",
-        "'Cancel' action: p.outro with neutral message and exits 0",
-        "src/lib/run.ts exports runCommands(commands, { onBefore, onSuccess, onError }): Promise<boolean> — callback-based, decoupled from UI",
-        "'Run all' action: calls runCommands; before each command prints '▶ [i/N] <command>' via p.log.step; each command runs via Bun.spawn({ cmd: ['sh', '-c', command], stdout: 'inherit', stderr: 'inherit' }); awaits proc.exited before next",
-        "If a command exits non-zero: stop series, print exit code via p.log.error, proceed to cleanup",
-        "After all exit 0: p.log.success, proceed to cleanup",
-        "Typecheck passes"
-      ],
-      "priority": 6,
-      "passes": true,
-      "notes": "Created src/lib/clipboard.ts (lifted from reference): copyToClipboard() uses pbcopy on macOS, iterates xclip/xsel/wl-copy on Linux via Bun.$`which`. Created src/lib/run.ts: runCommands(commands, {onBefore, onSuccess, onError}) runs each command via Bun.spawn(['sh','-c',cmd], {stdout:'inherit',stderr:'inherit'}), awaits exited, stops on non-zero exit. Updated src/index.ts: replaced stub with action menu loop — copy joins commands with \\n and writes to clipboard (success/warn message then exit); edit pre-fills p.text with current commands, splits back to array, re-renders panels and continues loop; run calls runCommands with ▶ [i/N] step logging, exits 0/1; cancel exits 0. Typecheck passes."
-    },
-    {
-      "id": "US-007",
-      "title": "Post-run cleanup prompt and --help/--version flags",
-      "description": "As a user, after a run I want the option to delete original input files, and I want standard --help and --version flags to work.",
-      "acceptanceCriteria": [
-        "After run completes (success or failure), infer input filenames from commands array by scanning for known media extensions: .png .jpg .jpeg .gif .webp .avif .mp4 .mov .mkv .mp3 .wav .flac .aac",
-        "If at least one input file inferred: print the list, p.confirm 'Delete original files?' default No; if confirmed delete each with Bun.$`rm ${file}` and log per-file result",
-        "If no input files inferred, skip cleanup prompt silently",
-        "vicon --help / -h: prints banner, usage, subcommands, 3 example invocations, exits 0",
-        "vicon --version / -v: prints version from package.json (embedded at compile time), exits 0",
-        "Typecheck passes"
-      ],
-      "priority": 7,
-      "passes": true,
-      "notes": "Added inferInputFiles() scanning commands for media extensions (.png .jpg .jpeg .gif .webp .avif .mp4 .mov .mkv .mp3 .wav .flac .aac) via regex, and runCleanup() that prints detected files, p.confirm (default No), then deletes via Bun.$`rm` with per-file success/error logging. runCleanup called in the 'run' action after runCommands returns (both success and failure paths). --help/-h and --version/-v were already implemented in US-005. Typecheck passes."
-    }
-  ]
+	"project": "vicon",
+	"branchName": "ralph/vicon-cli",
+	"description": "vicon — AI-Powered Media Conversion CLI that translates natural-language requests into ffmpeg/magick commands using Cloudflare AI or Claude Code CLI as the backend",
+	"userStories": [
+		{
+			"id": "US-001",
+			"title": "Project scaffold, dependencies, banner & theme",
+			"description": "As a developer, I need the project wired up with dependencies, strict tsconfig, dev/build scripts, the Catppuccin Frappe theme, and the VICON ASCII banner so the rest of the work has a foundation and consistent UI.",
+			"acceptanceCriteria": [
+				"package.json has @clack/prompts, picocolors, boxen, gradient-string, figlet installed via bun install",
+				"tsconfig.json is strict-mode, targets ESNext, moduleResolution: bundler",
+				"bun run dev runs src/index.ts with --hot",
+				"bun run build produces compiled binary ./vicon via bun build src/index.ts --compile --outfile vicon",
+				"src/ui/theme.ts exports full Catppuccin Frappe palette and semantic aliases (adapted from reference /tmp/imports/src/ui/theme.ts)",
+				"src/ui/banner.ts exports showBanner() displaying 'VICON' in ANSI Shadow font with mauve→pink→flamingo gradient",
+				"Banner renders without errors in terminal",
+				"Typecheck passes"
+			],
+			"priority": 1,
+			"passes": true,
+			"notes": "Installed @clack/prompts, boxen, figlet, gradient-string, picocolors. Added dev/build scripts to package.json. Created src/ui/theme.ts (full Catppuccin Frappe palette + semantic aliases + gradientColors + boxColors). Created src/ui/banner.ts (showBanner() with ANSI Shadow font, mauve→pink→flamingo gradient). Created src/index.ts entry point. Typecheck passes, banner renders."
+		},
+		{
+			"id": "US-002",
+			"title": "AI client module (Cloudflare + Claude Code CLI)",
+			"description": "As a developer, I need a reusable AI module that supports both Cloudflare AI and the Claude Code CLI as backends, with response validation, so all generation goes through one place.",
+			"acceptanceCriteria": [
+				"src/types.ts exports GenerateResult = { commands: string[], explanation: string }",
+				"src/lib/ai.ts exports CF_MODEL = '@cf/openai/gpt-oss-120b' and CLAUDE_MODEL = 'sonnet' as single swappable constants",
+				"generateWithCloudflare(systemPrompt, userPrompt, credentials): POSTs to https://api.cloudflare.com/client/v4/accounts/{accountId}/ai/v1/chat/completions with messages array and response_format json_object, throws on non-200",
+				"generateWithClaude(systemPrompt, userPrompt): spawns Bun.spawn(['claude', '--model', CLAUDE_MODEL, '-p', combinedPrompt], { stdout: 'pipe' }) and reads stdout via new Response(proc.stdout).text()",
+				"generate(systemPrompt, userPrompt, config): dispatches to the correct function based on config.defaultProvider",
+				"validateResponse(raw): strips markdown code fences defensively, parses JSON, validates commands is string[] and explanation is string, throws typed error with raw text if invalid",
+				"Both paths pipe their response through validateResponse before returning",
+				"Typecheck passes"
+			],
+			"priority": 2,
+			"passes": true,
+			"notes": "Created src/types.ts exporting GenerateResult { commands: string[], explanation: string }. Created src/lib/ai.ts with CF_MODEL='@cf/openai/gpt-oss-120b', CLAUDE_MODEL='sonnet', generateWithCloudflare (chat completions API with json_object response_format), generateWithClaude (Bun.spawn claude CLI, reads stdout via new Response(proc.stdout).text()), generate dispatcher, validateResponse with defensive code-fence stripping and typed ValidationError. Both paths pipe through validateResponse. Typecheck passes."
+		},
+		{
+			"id": "US-003",
+			"title": "Config, secrets & provider setup/teardown",
+			"description": "As a user, I need to configure vicon once — choosing Cloudflare (credentials required) or Claude Code CLI (no credentials) — and have that choice persisted in the system keychain with env var fallback.",
+			"acceptanceCriteria": [
+				"src/lib/secrets.ts exports SECRETS_SERVICE = 'com.vicon.cli' and CONFIG_KEY = 'VICON_CONFIG'",
+				"src/lib/config.ts exports: type Provider = 'cloudflare' | 'claude', interface CloudflareCredentials { accountId, apiToken }, interface ViconConfig { defaultProvider: Provider, cloudflare?: CloudflareCredentials }",
+				"Module-level three-state cache: undefined = not yet loaded, null = nothing found, object = valid config",
+				"getConfig(): checks cache → process.env['VICON_CONFIG'] JSON parse → Bun.secrets.get; caches result; returns null on miss",
+				"setConfig(config): writes to Bun.secrets, updates cache; on Linux libsecret error, throws with distro install commands",
+				"deleteConfig(): resets cache to undefined, calls Bun.secrets.delete",
+				"vicon setup: p.select provider → if cloudflare collect accountId + apiToken and save; if claude run 'which claude' via Bun.spawn and exit 1 if not found",
+				"vicon teardown: p.confirm (default No) → deleteConfig",
+				"--provider cloudflare|claude flag overrides config.defaultProvider for a single invocation",
+				"At conversion time: missing cloudflare credentials exits 1 with helpful message",
+				"Typecheck passes"
+			],
+			"priority": 3,
+			"passes": true,
+			"notes": "Created src/lib/secrets.ts (SECRETS_SERVICE='com.vicon.cli', CONFIG_KEY='VICON_CONFIG'). Created src/lib/config.ts (Provider type, CloudflareCredentials/ViconConfig interfaces, three-state cache, getConfig/setConfig/deleteConfig with Bun.secrets + env-var fallback and Linux libsecret install hints). Updated src/lib/ai.ts to import types from config.ts. Updated src/index.ts: setup subcommand (p.select provider, collect CF creds or verify claude CLI), teardown subcommand (p.confirm default No → deleteConfig), --provider flag override, missing-credentials guard at conversion time. Typecheck passes."
+		},
+		{
+			"id": "US-004",
+			"title": "Tool/codec detection and prompt construction",
+			"description": "As a developer, I need a tool detection module that probes ffmpeg and magick in parallel and a prompt builder that injects that context into structured LLM prompts enforcing strict JSON output.",
+			"acceptanceCriteria": [
+				"src/types.ts exports ToolContext: { ffmpeg: { installed: boolean, version?: string, encoders: string[], decoders: string[] }, magick: { installed: boolean, version?: string, formats: string[] } }",
+				"src/lib/tools.ts exports detectContext(): Promise<ToolContext> — runs ffmpeg and magick probes in parallel via Promise.all, caches for process lifetime",
+				"ffmpeg: parses version from 'ffmpeg -version' first line, encoder names from 'ffmpeg -encoders', decoder names from 'ffmpeg -decoders'; installed: false + empty arrays if not found",
+				"magick: parses version from 'magick -version' first line, format names from 'magick -list format'; installed: false + empty arrays if not found",
+				"src/lib/prompt.ts exports buildSystemPrompt(ctx: ToolContext): string and buildUserPrompt(request: string): string",
+				"Prompt composed as ## SectionName\\ncontent blocks joined by \\n\\n; sections: ## Environment then ## Rules",
+				"## Environment: ffmpeg 7.1 | encoders: [...] | decoders: [...] and magick 7.1.1 | formats: [...]",
+				"## Rules: instructs LLM to return only valid JSON { commands: string[], explanation: string }; explanation is plain prose only (no shell syntax); commands are complete copy-pasteable shell strings (no placeholders, no &&, no loops); ends with IMPORTANT: Reply with ONLY the JSON object",
+				"Rules also instruct: only use installed tools; prefer non-destructive output (_converted suffix, -n flag); multiple commands for batch tasks",
+				"Typecheck passes"
+			],
+			"priority": 4,
+			"passes": true,
+			"notes": "Added ToolContext interface to src/types.ts. Created src/lib/tools.ts: detectContext() runs ffmpeg and magick probes in parallel via Promise.all, parses version/encoders/decoders/formats, caches for process lifetime, gracefully handles not-found. Created src/lib/prompt.ts: buildSystemPrompt(ctx) builds ## Environment and ## Rules sections with full encoder/decoder/format lists and strict JSON-only output rules; buildUserPrompt(request) returns request unchanged. Typecheck passes."
+		},
+		{
+			"id": "US-005",
+			"title": "Main conversion flow — arg routing, tool summary, and display panels",
+			"description": "As a user, I want to run 'vicon my request' and see a spinner while tools are detected and AI generates commands, then a clear explanation panel and commands panel before being asked what to do.",
+			"acceptanceCriteria": [
+				"src/index.ts handles arg routing: 'setup', 'teardown', '--help/-h', '--version/-v' as subcommands; first non-flag positional arg is the conversion request",
+				"Full display flow: showBanner() → spinner 'Detecting tools…' → print tool summary → spinner 'Generating command…' → AI call → render panels → action menu",
+				"Tool summary line (via p.log.info): 'ffmpeg 7.1 (142 encoders · 156 decoders)  ·  magick 7.1.1 (210 formats)' in muted theme color; if not installed show 'ffmpeg not found' in yellow",
+				"Explanation panel: boxen with borderColor mauve (frappe primary), borderStyle round, padding {top:1,bottom:1,left:2,right:2}, title 'What this does' centered",
+				"Commands panel: boxen with borderColor surface2, dimBorder: true, borderStyle round, padding {top:0,bottom:0,left:1,right:1}, title 'Commands' left-aligned; commands numbered [1] cmd [2] cmd in frappe.sky color",
+				"Action menu: p.select with options 'Run all' / 'Edit' / 'Copy' / 'Cancel'",
+				"Single command still goes through the Commands panel unchanged",
+				"If JSON parse fails, show raw LLM output and exit 1",
+				"Typecheck passes"
+			],
+			"priority": 5,
+			"passes": true,
+			"notes": "Updated src/index.ts: added --help/-h (banner + usage with 3 examples) and --version/-v (reads version from package.json import) flags; first non-flag positional arg is conversion request. Implemented runConversion(): spinner 'Detecting tools…' → detectContext() → p.log.info tool summary (muted for installed, yellow for not found) → spinner 'Generating command…' → generate() → renderPanels() (boxen explanation panel: borderColor mauve, round, centered title 'What this does'; boxen commands panel: borderColor surface2, dimBorder, round, left title 'Commands', sky-colored [N] prefix) → p.select action menu (Run all/Edit/Copy/Cancel). Cancel exits 0; run/edit/copy stubs left for US-006. ValidationError shows raw output and exits 1. Typecheck passes."
+		},
+		{
+			"id": "US-006",
+			"title": "Action menu: edit, copy, and serial command execution",
+			"description": "As a user, after seeing the panels I want to edit or copy commands, or run them all in series with live output streamed to my terminal.",
+			"acceptanceCriteria": [
+				"src/lib/clipboard.ts (lifted from /tmp/imports): macOS uses Bun.spawn(['pbcopy'], { stdin: 'pipe' }) writing text directly to stdin; Linux iterates [xclip -selection clipboard, xsel --clipboard --input, wl-copy] probing with Bun.$`which`.quiet(), spawns first found; returns boolean",
+				"'Copy' action: copies all commands joined by \\n to clipboard; prints success or 'No clipboard tool found. Install xclip, xsel, or wl-copy.' then exits",
+				"'Edit' action: p.text pre-filled with commands joined by \\n; on submit re-renders both panels with updated commands and re-shows action menu",
+				"'Cancel' action: p.outro with neutral message and exits 0",
+				"src/lib/run.ts exports runCommands(commands, { onBefore, onSuccess, onError }): Promise<boolean> — callback-based, decoupled from UI",
+				"'Run all' action: calls runCommands; before each command prints '▶ [i/N] <command>' via p.log.step; each command runs via Bun.spawn({ cmd: ['sh', '-c', command], stdout: 'inherit', stderr: 'inherit' }); awaits proc.exited before next",
+				"If a command exits non-zero: stop series, print exit code via p.log.error, proceed to cleanup",
+				"After all exit 0: p.log.success, proceed to cleanup",
+				"Typecheck passes"
+			],
+			"priority": 6,
+			"passes": true,
+			"notes": "Created src/lib/clipboard.ts (lifted from reference): copyToClipboard() uses pbcopy on macOS, iterates xclip/xsel/wl-copy on Linux via Bun.$`which`. Created src/lib/run.ts: runCommands(commands, {onBefore, onSuccess, onError}) runs each command via Bun.spawn(['sh','-c',cmd], {stdout:'inherit',stderr:'inherit'}), awaits exited, stops on non-zero exit. Updated src/index.ts: replaced stub with action menu loop — copy joins commands with \\n and writes to clipboard (success/warn message then exit); edit pre-fills p.text with current commands, splits back to array, re-renders panels and continues loop; run calls runCommands with ▶ [i/N] step logging, exits 0/1; cancel exits 0. Typecheck passes."
+		},
+		{
+			"id": "US-007",
+			"title": "Post-run cleanup prompt and --help/--version flags",
+			"description": "As a user, after a run I want the option to delete original input files, and I want standard --help and --version flags to work.",
+			"acceptanceCriteria": [
+				"After run completes (success or failure), infer input filenames from commands array by scanning for known media extensions: .png .jpg .jpeg .gif .webp .avif .mp4 .mov .mkv .mp3 .wav .flac .aac",
+				"If at least one input file inferred: print the list, p.confirm 'Delete original files?' default No; if confirmed delete each with Bun.$`rm ${file}` and log per-file result",
+				"If no input files inferred, skip cleanup prompt silently",
+				"vicon --help / -h: prints banner, usage, subcommands, 3 example invocations, exits 0",
+				"vicon --version / -v: prints version from package.json (embedded at compile time), exits 0",
+				"Typecheck passes"
+			],
+			"priority": 7,
+			"passes": true,
+			"notes": "Added inferInputFiles() scanning commands for media extensions (.png .jpg .jpeg .gif .webp .avif .mp4 .mov .mkv .mp3 .wav .flac .aac) via regex, and runCleanup() that prints detected files, p.confirm (default No), then deletes via Bun.$`rm` with per-file success/error logging. runCleanup called in the 'run' action after runCommands returns (both success and failure paths). --help/-h and --version/-v were already implemented in US-005. Typecheck passes."
+		}
+	]
 }
