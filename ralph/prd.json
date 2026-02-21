@@ -96,8 +96,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Updated src/index.ts: added --help/-h (banner + usage with 3 examples) and --version/-v (reads version from package.json import) flags; first non-flag positional arg is conversion request. Implemented runConversion(): spinner 'Detecting tools…' → detectContext() → p.log.info tool summary (muted for installed, yellow for not found) → spinner 'Generating command…' → generate() → renderPanels() (boxen explanation panel: borderColor mauve, round, centered title 'What this does'; boxen commands panel: borderColor surface2, dimBorder, round, left title 'Commands', sky-colored [N] prefix) → p.select action menu (Run all/Edit/Copy/Cancel). Cancel exits 0; run/edit/copy stubs left for US-006. ValidationError shows raw output and exits 1. Typecheck passes."
     },
     {
       "id": "US-006",
