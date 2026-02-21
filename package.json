@@ -1,6 +1,6 @@
 {
   "name": "@seanmozeik/vicon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI-powered media conversion CLI — describe what you want, get the commands",
   "type": "module",
   "bin": {
