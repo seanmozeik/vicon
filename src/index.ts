@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import * as p from "@clack/prompts";
 import boxen from "boxen";
 import { generate, ValidationError } from "./lib/ai.js";
