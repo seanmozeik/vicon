@@ -7,7 +7,8 @@ export interface ToolContext {
 	ffmpeg: {
 		installed: boolean;
 		version?: string;
-		encoders: string[];
+		videoEncoders: string[];
+		audioEncoders: string[];
 		decoders: string[];
 	};
 	magick: {

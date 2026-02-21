@@ -6,7 +6,7 @@ class Vicon < Formula
 
   # URL to bundled source (single JS file)
   url "https://github.com/seanmozeik/vicon/releases/download/v#{version}/vicon-#{version}.tar.gz"
-  sha256 "PLACEHOLDER"
+  sha256 "3c289848c6f02496c9b6ff730e02a85dd03d55bc0529e8501f539e359d678f93"
 
   depends_on "oven-sh/bun/bun"
 

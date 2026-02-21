@@ -13,7 +13,13 @@ async function run(cmd: string[]): Promise<string> {
 
 async function probeFfmpeg(): Promise<ToolContext["ffmpeg"]> {
 	const versionOut = await run(["ffmpeg", "-version"]);
-	if (!versionOut) return { installed: false, encoders: [], decoders: [] };
+	if (!versionOut)
+		return {
+			installed: false,
+			videoEncoders: [],
+			audioEncoders: [],
+			decoders: [],
+		};
 
 	const versionMatch = versionOut.split("\n")[0]?.match(/ffmpeg version (\S+)/);
 	const version = versionMatch?.[1];
@@ -21,21 +27,24 @@ async function probeFfmpeg(): Promise<ToolContext["ffmpeg"]> {
 	const encodersOut = await run(["ffmpeg", "-encoders"]);
 	const decodersOut = await run(["ffmpeg", "-decoders"]);
 
-	const encoders = encodersOut
-		.split("\n")
-		.slice(1)
-		.filter((l) => /^ [VAS.]+\s/.test(l))
-		.map((l) => l.trim().split(/\s+/)[1] ?? "")
-		.filter(Boolean);
+	const parseEncoderLines = (out: string) =>
+		out
+			.split("\n")
+			.filter((l) => /^ [VAS][A-Z.]{5} \S/.test(l))
+			.map((l) => ({ type: l[1], name: l.trim().split(/\s+/)[1] ?? "" }))
+			.filter((e) => e.name);
 
-	const decoders = decodersOut
-		.split("\n")
-		.slice(1)
-		.filter((l) => /^ [VAS.]+\s/.test(l))
-		.map((l) => l.trim().split(/\s+/)[1] ?? "")
-		.filter(Boolean);
+	const encoderEntries = parseEncoderLines(encodersOut);
+	const videoEncoders = encoderEntries
+		.filter((e) => e.type === "V")
+		.map((e) => e.name);
+	const audioEncoders = encoderEntries
+		.filter((e) => e.type === "A")
+		.map((e) => e.name);
 
-	return { installed: true, version, encoders, decoders };
+	const decoders = parseEncoderLines(decodersOut).map((e) => e.name);
+
+	return { installed: true, version, videoEncoders, audioEncoders, decoders };
 }
 
 async function probeMagick(): Promise<ToolContext["magick"]> {

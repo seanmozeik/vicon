@@ -5,10 +5,10 @@
 rm -rf dist && mkdir -p dist
 
 # Bundle to JS for macOS/Linux (via Homebrew with depends_on "bun")
-bun build ./src/index.ts --outdir dist --target=bun --bytecode --minify
+bun build ./src/index.ts --outdir dist --target=bun --minify
 
 # Build Windows binary (compiled, since no Homebrew)
-bun build ./src/index.ts --compile --target=bun-windows-x64 --bytecode --outfile dist/vicon-windows-x64.exe --minify
+bun build ./src/index.ts --compile --format esm --target=bun-windows-x64 --bytecode --outfile dist/vicon-windows-x64.exe --minify
 
 # Clean up bun build artifacts
 rm -f ./.*bun-build

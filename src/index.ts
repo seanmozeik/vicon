@@ -190,7 +190,8 @@ function renderToolSummary(ctx: ToolCtx): string {
 
 	if (ctx.ffmpeg.installed) {
 		const ver = ctx.ffmpeg.version ?? "?";
-		const enc = ctx.ffmpeg.encoders.length;
+		const enc =
+			ctx.ffmpeg.videoEncoders.length + ctx.ffmpeg.audioEncoders.length;
 		const dec = ctx.ffmpeg.decoders.length;
 		parts.push(
 			theme.muted(`ffmpeg ${ver} (${enc} encoders · ${dec} decoders)`),
@@ -395,13 +396,25 @@ async function handleEditCommandsAction(
 }
 
 async function handleRunAction(commands: string[]): Promise<void> {
+	const preExisting = new Set(
+		await Promise.all(
+			inferInputFiles(commands).map(async (f) => {
+				const file = Bun.file(f);
+				return (await file.exists()) ? f : null;
+			}),
+		).then((results) => results.filter((f): f is string => f !== null)),
+	);
+
 	const success = await runCommands(commands, {
 		onBefore: (cmd, i, total) => p.log.step(`▶ [${i + 1}/${total}] ${cmd}`),
 		onSuccess: () => p.log.success("All commands completed successfully."),
 		onError: (cmd, exitCode) =>
 			p.log.error(`Command exited with code ${exitCode}: ${cmd}`),
 	});
-	await runCleanup(inferInputFiles(commands));
+
+	if (success) {
+		await runCleanup([...preExisting]);
+	}
 	process.exit(success ? 0 : 1);
 }
 
@@ -416,6 +429,13 @@ async function runConversion(
 	const ctx = await detectContext();
 	toolSpinner.stop("Tools detected.");
 	p.log.info(renderToolSummary(ctx));
+
+	if (!ctx.ffmpeg.installed && !ctx.magick.installed) {
+		p.log.error(
+			"No media tools found. Install ffmpeg or ImageMagick and try again.",
+		);
+		process.exit(1);
+	}
 
 	let { result: currentResult, userRequest } = await generateUntilSuccess(
 		initialRequest,
