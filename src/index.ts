@@ -7,6 +7,8 @@ import type { Provider, ViconConfig } from './lib/config.js';
 import { detectContext } from './lib/tools.js';
 import { buildSystemPrompt, buildUserPrompt } from './lib/prompt.js';
 import { generate, ValidationError } from './lib/ai.js';
+import { copyToClipboard } from './lib/clipboard.js';
+import { runCommands } from './lib/run.js';
 
 // ── Arg parsing ──────────────────────────────────────────────────────────────
 
@@ -242,24 +244,63 @@ async function runConversion(request: string, config: ViconConfig): Promise<void
   // 4. Render panels
   renderPanels(result);
 
-  // 5. Action menu
-  const action = await p.select({
-    message: 'What would you like to do?',
-    options: [
-      { value: 'run', label: 'Run all' },
-      { value: 'edit', label: 'Edit' },
-      { value: 'copy', label: 'Copy' },
-      { value: 'cancel', label: 'Cancel' },
-    ],
-  });
+  // 5. Action menu loop (edit re-enters; other actions exit)
+  let currentResult = result;
 
-  if (p.isCancel(action) || action === 'cancel') {
-    p.outro('Cancelled.');
-    process.exit(0);
+  while (true) {
+    const action = await p.select({
+      message: 'What would you like to do?',
+      options: [
+        { value: 'run', label: 'Run all' },
+        { value: 'edit', label: 'Edit' },
+        { value: 'copy', label: 'Copy' },
+        { value: 'cancel', label: 'Cancel' },
+      ],
+    });
+
+    if (p.isCancel(action) || action === 'cancel') {
+      p.outro('Cancelled.');
+      process.exit(0);
+    }
+
+    if (action === 'copy') {
+      const ok = await copyToClipboard(currentResult.commands.join('\n'));
+      if (ok) {
+        p.log.success('Commands copied to clipboard.');
+      } else {
+        p.log.warn('No clipboard tool found. Install xclip, xsel, or wl-copy.');
+      }
+      process.exit(0);
+    }
+
+    if (action === 'edit') {
+      const edited = await p.text({
+        message: 'Edit commands (one per line):',
+        initialValue: currentResult.commands.join('\n'),
+      });
+      if (p.isCancel(edited)) {
+        p.outro('Cancelled.');
+        process.exit(0);
+      }
+      const newCommands = (edited as string)
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+      currentResult = { ...currentResult, commands: newCommands };
+      renderPanels(currentResult);
+      continue;
+    }
+
+    if (action === 'run') {
+      const success = await runCommands(currentResult.commands, {
+        onBefore: (cmd, i, total) => p.log.step(`▶ [${i + 1}/${total}] ${cmd}`),
+        onSuccess: () => p.log.success('All commands completed successfully.'),
+        onError: (cmd, exitCode) =>
+          p.log.error(`Command exited with code ${exitCode}: ${cmd}`),
+      });
+      process.exit(success ? 0 : 1);
+    }
   }
-
-  // US-006 will implement run, edit, copy
-  return { action, result } as never;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
